@@ -32,6 +32,9 @@ module.exports = (resources) => {
       // ...
       // config.config1 = await bundled_config.config('CONFIG1')
       // ...
+      config.files=input.Files
+      config.scanned_files=input.scanned_files
+      config.errored_files=input.errored_files
       return config
     }
     
@@ -44,6 +47,9 @@ module.exports = (resources) => {
     async function validate(config) {
       ;[
         // [variable, "display name"],
+        [config.files,"Files array"],
+        [config.scanned_files,"Scanned files array"],
+        [config.errored_files,"Errored files array"]
       ].forEach(([item, name]) => { if (!item) { throw new Error( 'MissingInput: ' + name )}})
       return config
     }
@@ -51,3 +57,4 @@ module.exports = (resources) => {
 
   return my
 }
+
