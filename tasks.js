@@ -3,6 +3,7 @@ module.exports = (resources) => {
   const shared = {
     // SHARED_VAR: value
     // ...
+    'PATH':'S3://<proxy-bucket>/<uuid>/<filename>/analysis/vtt/entity/<name>.vtt'
   }
 
   // ============================================================================
@@ -10,6 +11,7 @@ module.exports = (resources) => {
   my.run = async (input) => {
     const {s3_driver} = resources
     let output = {}
+    let arrOut =[]
     try {
       const data = await setup(await validate( await load(input)))
       // business logic goes here...
@@ -17,28 +19,32 @@ module.exports = (resources) => {
       const filesArray= data.files
       const scannedFilesArray= data.scanned_files
       const erroredFilesArray= data.errored_files
+      //Filtering of the files that are both in the Files and Scanned Files array
       const scannedFilesDictionary={}
       scannedFilesArray.forEach((file)=>{scannedFilesDictionary[file]=file})
       const filesOutput= filesArray.filter((file)=>{return !(file in scannedFilesDictionary)})
-
+      //Filtering of the files that are both in the Files and Errored Files array so they don't upload twice
       const filesDictionary={}
       filesArray.forEach((file)=>{filesDictionary[file]=file})
       const erroredFilesOutput= erroredFilesArray.filter((file)=>{return !(file in filesDictionary)})
-
-      await s3_driver().add().then((res)=>{
+      //Final array for upload
+      arrOut=[...filesOutput, ...erroredFilesOutput]
+      //S3 module for uploading result
+      await s3_driver().add(shared.PATH,arrOut).then((res)=>{
         const prueba=JSON.parse(res)
         output.status=prueba.status
         output.message=prueba.message
       })
-      if(output.status!=="200"){
+      if(output.status ==='error'){
         throw new Error
       }
-      output=[...filesOutput, ...erroredFilesOutput]
       
     } catch (e) { 
+      output.status='error'
+      output.message='Serverside error.Please try again'
       return output
     }
-
+    output=arrOut
     return output
 
     async function load(input={}) {
@@ -78,11 +84,11 @@ module.exports = (resources) => {
     async function validate(config) {
       ;[
         // [variable, "display name"],
-        [config.files,"Files array"],
-        [config.scanned_files,"Scanned files array"],
-        [config.errored_files,"Errored files array"]
+        [config.files,'Files array'],
+        [config.scanned_files,'Scanned files array'],
+        [config.errored_files,'Errored files array']
       ].forEach(([item, name]) => { if (!item) { throw new Error( 'MissingInput: ' + name )}})
-        if(!config.files.length){throw new Error("Files array is empty")}
+        if(!config.files.length){throw new Error('Files array is empty')}
       return config
     }
 
